@@ -1,0 +1,14 @@
+.pio
+*.git
+.vscode
+*.code-workspace
+*.out
+*.exe
+*.hex
+*.app
+ping
+pong
+receive_explicit
+receive_implicit
+transmit_explicit
+transmit_implicit
