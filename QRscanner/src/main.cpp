@@ -1,44 +1,71 @@
 #include <Arduino.h>
+#include <Wire.h>
 #include <ESP32QRCodeReader.h>
-//library: https://github.com/alvarowolfx/ESP32QRCodeReader/tree/master
-
-ESP32QRCodeReader reader(CAMERA_MODEL_AI_THINKER);
-struct QRCodeData qrCodeData;
 
 #define FLASH_PIN 4
-#define BUTTON_PIN 12
+#define BUTTON_PIN 16
+#define I2C_SDA 14
+#define I2C_SCL 15
+#define SLAVE_ADDR 0x08 // Dirección I2C del esclavo
 
-void setup(){
-  pinMode(FLASH_PIN, OUTPUT);
-  digitalWrite(FLASH_PIN, LOW);
-  pinMode(BUTTON_PIN, INPUT_PULLDOWN);
+ESP32QRCodeReader reader(CAMERA_MODEL_AI_THINKER);
+String scanning = " "; // Variable para controlar el escaneo
+String temp = " ";
 
-  Serial.begin(115200);
-  Serial.println();
+//library: https://github.com/alvarowolfx/ESP32QRCodeReader/tree/master
+//ESP32 CAM Feed Voltage 5V, Input Voltage GPIO 3,3V
 
-  reader.setup();
-  Serial.println("Setup QRCode Reader");
-  reader.begin();
-  Serial.println("Begin on Core 1");
+void onQrCodeTask(void *pvParameters)
+{
+  struct QRCodeData qrCodeData;
 
-}
-
-void loop(){
-  if (digitalRead(BUTTON_PIN) == HIGH){ // Si el botón se presiona
-    Serial.println("Escaneando QR...");
-    digitalWrite(FLASH_PIN, HIGH); // Enciende el flash
-    if (reader.receiveQrCode(&qrCodeData, 100)){
+  while (true)
+  {
+    if (reader.receiveQrCode(&qrCodeData, 100))
+    {
       Serial.println("Found QRCode");
-      if (qrCodeData.valid){
+      if (qrCodeData.valid)
+      {
         Serial.print("Payload: ");
         Serial.println((const char *)qrCodeData.payload);
+        scanning = (const char *)qrCodeData.payload;
       }
-      else{
+      else
+      {
         Serial.print("Invalid: ");
         Serial.println((const char *)qrCodeData.payload);
       }
     }
-    delay(300);
-    digitalWrite(FLASH_PIN, LOW); // Apagar el flash
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
+}
+
+void setup()
+{
+  Wire.begin(I2C_SDA, I2C_SCL); // Configura ESP32-CAM como maestro
+  Serial.begin(115200);
+  Serial.println();
+
+  reader.setup();
+
+  Serial.println("Setup QRCode Reader");
+
+  reader.beginOnCore(1);
+
+  Serial.println("Begin on Core 1");
+
+  xTaskCreate(onQrCodeTask, "onQrCode", 4 * 1024, NULL, 4, NULL);
+}
+
+void loop()
+{
+  delay(100);
+  if(scanning != temp){
+    Serial.println(scanning);
+    temp = scanning;
+    Wire.beginTransmission(SLAVE_ADDR);
+    Wire.write(scanning.c_str());
+    Wire.endTransmission();
+    Serial.println("Mensaje enviado");
   }
 }
