@@ -1,22 +1,34 @@
 #include <SPI.h>
+#include <Wire.h>
 #include <LoRa.h>
 
-int counter = 0;
+//Slave Address
+#define I2C_SLAVE_ADDR 0x08
+#define SDA 21
+#define SCL 22
+char* message = (char*) malloc(50);  // Reserva 50 bytes en RAM para recibir el mensaje del ESP32CAM
+
+uint8_t counter = 0;
 // Pines LoRa
 #define LORA_SS 17
 #define LORA_RST 16
-#define LORA_DIO0 23
+#define LORA_DIO0 4
 
 // Pin del LED incorporado
 #define LED_BUILTIN 2  // El LED incorporado en la mayoría de las ESP32 está en el pin 2
 
 void sendLoRaMessage(const char* message);
+void receiveEvent(int bytes);
 
 void setup() {
   // Inicializar el LED
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);  // Apagado inicialmente
   
+  Wire.begin(SDA, SCL, I2C_SLAVE_ADDR); // Configura ESP32 DevKit como esclavo en I2C
+  Wire.onReceive(receiveEvent); // Ejecuta cuando recibe datos
+  strcpy(message, " ");
+
   Serial.begin(115200);
   Serial.println("Inicializando LoRa...");
   LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
@@ -25,22 +37,20 @@ void setup() {
     Serial.println("Error al inicializar LoRa.");
     while (1);
   }
-
-  //LoRa.setPreambleLength(6);
   Serial.println("LoRa inicializado correctamente.");
+
   // Configuración de LoRa
+  //LoRa.setPreambleLength(6);
   LoRa.setSpreadingFactor(12);
   LoRa.setSignalBandwidth(125E3);
   LoRa.setCodingRate4(8);
   LoRa.setTxPower(20, PA_OUTPUT_PA_BOOST_PIN);
   LoRa.enableCrc();
-
   LoRa.setSyncWord(0xAA);
-
   Serial.println("LoRa inicializado con éxito.");
   
   // Parpadeo inicial para indicar inicio correcto
-  for(int i=0; i<3; i++) {
+  for(uint8_t i=0; i<3; i++) {
     digitalWrite(LED_BUILTIN, HIGH);
     delay(100);
     digitalWrite(LED_BUILTIN, LOW);
@@ -50,7 +60,7 @@ void setup() {
 
 void loop() {
   // Verificar si hay algún paquete recibido
-  int packetSize = LoRa.parsePacket();
+  uint8_t packetSize = LoRa.parsePacket();
   if (packetSize) {
     // Encender LED para indicar recepción
     digitalWrite(LED_BUILTIN, HIGH);
@@ -93,4 +103,14 @@ void sendLoRaMessage(const char* message) {
   // Mantener el LED encendido brevemente
   delay(200);
   digitalWrite(LED_BUILTIN, LOW);
+}
+
+void receiveEvent(int bytes) {
+  uint8_t i = 0;
+  Serial.print("Recibido: ");
+  while (Wire.available()) {
+    message[i++] = Wire.read();
+    Serial.print(message[i - 1]); // Imprime carácter por carácter
+  }
+  Serial.println(); 
 }
