@@ -1,5 +1,5 @@
 #include <pigpio.h>
-
+#include <wiringPi.h> //yo agregué
 #include "LoRa.h"
 
 int LoRa_begin(LoRa_ctl *modem) {
@@ -112,7 +112,8 @@ void lora_set_dio_tx_mapping(int spid){
 
 void lora_set_rxdone_dioISR(int gpio_n, rxDoneISR func, LoRa_ctl *modem){
 	gpioSetMode(gpio_n, PI_INPUT);
-	gpioSetISRFuncEx(gpio_n, RISING_EDGE, 0, func, (void *)modem);
+	gpioSetISRFuncEx(gpio_n, RISING_EDGE, 0.1, func, (void *)modem);
+	//printf("%set ISR funcd\n", gpioSetISRFuncEx(gpio_n, RISING_EDGE, 0, func, (void *)modem)); problema aqui
 }
 
 void lora_set_txdone_dioISR(int gpio_n, txDoneISR func, LoRa_ctl *modem){
@@ -189,7 +190,7 @@ void lora_get_snr(LoRa_ctl *modem){
 void rxDoneISRf(int gpio_n, int level, uint32_t tick, void *modemptr){
 	LoRa_ctl *modem = (LoRa_ctl *)modemptr;
 	unsigned char rx_nb_bytes;
-
+	printf("ISR de rx done\n");
 	if(lora_reg_read_byte(modem->spid, REG_IRQ_FLAGS) & IRQ_RXDONE){
 		lora_reg_write_byte(modem->spid, REG_FIFO_ADDR_PTR, lora_reg_read_byte(modem->spid, REG_FIFO_RX_CURRENT_ADDR));
 
