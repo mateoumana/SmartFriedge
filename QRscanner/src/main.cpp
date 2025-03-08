@@ -43,6 +43,8 @@ void onQrCodeTask(void *pvParameters)
 void setup()
 {
   Wire.begin(I2C_SDA, I2C_SCL); // Configura ESP32-CAM como maestro
+  Wire.setClock(100000); // 100 kHz
+
   Serial.begin(115200);
   Serial.println();
 
@@ -55,8 +57,15 @@ void setup()
   Serial.println("Begin on Core 1");
 
   xTaskCreate(onQrCodeTask, "onQrCode", 4 * 1024, NULL, 4, NULL);
+  /*for (byte address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() == 0) {
+        Serial.print("Dispositivo encontrado en 0x");
+        Serial.println(address, HEX);
+    }
+  }*/
 }
-
+byte error = 0;
 void loop()
 {
   delay(100);
@@ -65,7 +74,8 @@ void loop()
     temp = scanning;
     Wire.beginTransmission(SLAVE_ADDR);
     Wire.write(scanning.c_str());
-    Wire.endTransmission();
+    error = Wire.endTransmission();
     Serial.println("Mensaje enviado");
+    Serial.println(error);
   }
 }

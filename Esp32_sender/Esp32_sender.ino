@@ -6,7 +6,6 @@
 #define I2C_SLAVE_ADDR 0x08
 #define SDA 21
 #define SCL 22
-char* message = (char*) malloc(50);  // Reserva 50 bytes en RAM para recibir el mensaje del ESP32CAM
 
 uint8_t counter = 0;
 // Pines LoRa
@@ -18,17 +17,19 @@ uint8_t counter = 0;
 #define LED_BUILTIN 2  // El LED incorporado en la mayoría de las ESP32 está en el pin 2
 
 void sendLoRaMessage(const char* message);
-void receiveEvent(int bytes);
+void receiveEvent(int bytes);//INTERRUPT I2C
 
 void setup() {
   // Inicializar el LED
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);  // Apagado inicialmente
   
-  Wire.begin(SDA, SCL, I2C_SLAVE_ADDR); // Configura ESP32 DevKit como esclavo en I2C
-  Wire.onReceive(receiveEvent); // Ejecuta cuando recibe datos
-  strcpy(message, " ");
+  // Inicializar el I2C, por defecto sda es 21 y scl 22, si se definen en el constructor no funciona
+  Wire.begin(I2C_SLAVE_ADDR); // Configura ESP32 DevKit como esclavo en I2C
+  Wire.setClock(100000); // 100 kHz
+  Wire.onReceive(receiveEvent); // Llama a la función cuando recibe datos
 
+  // Inicializar el LoRa
   Serial.begin(115200);
   Serial.println("Inicializando LoRa...");
   LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
@@ -78,14 +79,14 @@ void loop() {
     digitalWrite(LED_BUILTIN, LOW);
   }
   
-  // Enviar mensaje periódicamente
+  /*// Enviar mensaje periódicamente
   static unsigned long lastSendTime = 0;
-  if (millis() - lastSendTime > 500) {  // Enviar cada 5 segundos
+  if (millis() - lastSendTime > 2000) {  // Enviar cada 5 segundos
     Serial.println("Paquete enviado");
-    sendLoRaMessage("Hola\0");
+    sendLoRaMessage("Hola Raspberry pi\0");
     Serial.println("====================================");
     lastSendTime = millis();
-  }
+  }*/
 }
 
 // send packet
@@ -101,16 +102,21 @@ void sendLoRaMessage(const char* message) {
   LoRa.endPacket();
   
   // Mantener el LED encendido brevemente
-  delay(200);
+  delay(20);
   digitalWrite(LED_BUILTIN, LOW);
 }
 
 void receiveEvent(int bytes) {
   uint8_t i = 0;
+  char mssg[30];
   Serial.print("Recibido: ");
   while (Wire.available()) {
-    message[i++] = Wire.read();
-    Serial.print(message[i - 1]); // Imprime carácter por carácter
+    mssg[i] = Wire.read();
+    if(mssg[i] == '\0') break;
+    i++;
   }
-  Serial.println(); 
+  mssg[i] = '\0'; //asegurar el final del string
+  Serial.println("Paquete enviado");
+  sendLoRaMessage(mssg);
+  Serial.println("====================================");
 }
