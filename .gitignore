@@ -2,6 +2,7 @@
 .vscode
 *.code-workspace
 *.git
+*.db
 .vscode
 *.code-workspace
 *.out
@@ -14,4 +15,5 @@ receive_explicit
 receive_implicit
 transmit_explicit
 transmit_implicit
+Raspi_receiver
 WiringPi
